@@ -314,7 +314,7 @@ def asFlag(var):
 def getFacilityStatus(ctx, guest, facilityType):
     (status, _timestamp) = guest.getFacilityStatus(facilityType)
     return asEnumElem(ctx, 'AdditionsFacilityStatus', status)
-        
+
 def perfStats(ctx, mach):
     if not ctx['perf']:
         return
@@ -329,6 +329,9 @@ def printMouseEvent(_ctx, mev):
 
 def printKbdEvent(ctx, kev):
     print "Kbd: ", ctx['global'].getArray(kev, 'scancodes')
+
+def printFileEvent(ctx, fileobj):
+    print "File : %s" % (fileobj.file)
 
 def printMultiTouchEvent(ctx, mtev):
     print "MultiTouch : contacts=%d time=%d" % (mtev.contactCount, mtev.scanTime)
@@ -368,6 +371,11 @@ def monitorSource(ctx, eventSource, active, dur):
             mev = ctx['global'].queryInterface(event, 'IGuestMouseEvent')
             if mev:
                 printMouseEvent(ctx, mev)
+        elif evtype == ctx['global'].constants.VBoxEventType_OnGuestFileRead:
+            print "whatwhatwhat"
+            fileobj = ctx['global'].queryInterface(event, 'IGuestFileWriteEvent')
+            if fileobj:
+                printFileEvent(ctx, fileobj)
         elif evtype == ctx['global'].constants.VBoxEventType_OnGuestKeyboard:
             kev = ctx['global'].queryInterface(event, 'IGuestKeyboardEvent')
             if kev:
@@ -407,6 +415,7 @@ def monitorSource(ctx, eventSource, active, dur):
             else:
                 event = eventSource.getEvent(listener, 500)
                 if event:
+                    print vars(event)
                     handleEventImpl(event)
                     # otherwise waitable events will leak (active listeners ACK automatically)
                     eventSource.eventProcessed(listener, event)
@@ -1595,6 +1604,20 @@ def monitorGuestKbdCmd(ctx, args):
         dur = float(args[2])
     active = False
     cmdExistingVm(ctx, mach, 'guestlambda', [lambda ctx, mach, console, args:  monitorSource(ctx, console.keyboard.eventSource, active, dur)])
+    return 0
+
+def monitorGuestFileWriteCmd(ctx, args):
+    if (len(args) < 2):
+        print "usage: monitorGuestFileWriteCmd name (duration)"
+        return 0
+    mach = argsToMach(ctx, args)
+    if mach == None:
+        return 0
+    dur = 5
+    if len(args) > 2:
+        dur = float(args[2])
+    active = False
+    cmdExistingVm(ctx, mach, 'guestlambda', [lambda ctx, mach, console, args:  monitorSource(ctx, console.guest.eventSource, active, dur)])
     return 0
 
 def monitorGuestMouseCmd(ctx, args):
@@ -3273,6 +3296,7 @@ commands = {'help':['Prints help information', helpCmd, 0],
             'host':['Show host information', hostCmd, 0],
             'guest':['Execute command for guest: guest Win32 \'console.mouse.putMouseEvent(20, 20, 0, 0, 0)\'', guestCmd, 0],
             'monitorGuest':['Monitor what happens with the guest for some time: monitorGuest Win32 10', monitorGuestCmd, 0],
+            'monitorGuestFileWriteCmd':['Monitor guest files for some time: monitorGuestFileWriteCmd Win32 10', monitorGuestFileWriteCmd, 0],
             'monitorGuestKbd':['Monitor guest keyboard for some time: monitorGuestKbd Win32 10', monitorGuestKbdCmd, 0],
             'monitorGuestMouse':['Monitor guest mouse for some time: monitorGuestMouse Win32 10', monitorGuestMouseCmd, 0],
             'monitorGuestMultiTouch':['Monitor guest touch screen for some time: monitorGuestMultiTouch Win32 10', monitorGuestMultiTouchCmd, 0],
